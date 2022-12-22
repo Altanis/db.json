@@ -1,0 +1,14 @@
+{
+  "name": "jsondb",
+  "version": "1.0.0",
+  "description": "A simple wrapper around JSON to employ a persistent psuedodatabase.",
+  "main": "lib/index.ts",
+  "scripts": {
+    "build": "tsc -p ."
+  },
+  "author": "Altanis",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^18.11.17"
+  }
+}
