@@ -50,7 +50,7 @@ export default class Pool {
             this.jobs++;
             fs.writeFile(this.file, JSON.stringify(this.data, null, this.options.indents || 0), (error) => {
                 if (error) this.logger.error(`Failed to save database to file \x1b[35m${this.file}\x1b[0m. ${error}`);
-                else this.jobs--;
+                this.jobs--;
             });
         }
     }
@@ -108,10 +108,48 @@ export default class Pool {
         !this.options.defer && (this.modified = true, this.save());
     }
 
-    /** Deletes a value from the pool. */
+    /** Deletes a value from the pool.
+     * @param key The key to delete the value from.
+     * @example
+     * data: { a: { b: { c: 1 } } }
+     * pool.delete('a'); // {}
+     * // NOTE: You cannot delete a path, only the key.
+     */
     // TODO(Altanis): Add path support.
     public delete(key: string): void {
         delete this.data[key];
         !this.options.defer && (this.modified = true, this.save());
+    }
+
+    /** Clears the pool. */
+    public clear(): void {
+        this.data = {};
+        !this.options.defer && (this.modified = true, this.save());
+    }
+
+    // A R R A Y  M E T H O D S
+
+    /** Pushes an element into an array.
+     * @param key The key to push the element to.
+     * @param value The value to push.
+     * @example
+     * data: { a: [1, 2, 3] }
+     * pool.push('a', 4); // { a: [1, 2, 3, 4] }
+     */
+    public push(key: string, value: any) {
+        this.data[key] = this.data[key] ?? [];
+        this.data[key].push(value);
+    }
+
+    /** Removes an element from an array.
+     * @param key The key to remove the element from.
+     * @param value The value to remove.
+     * @example
+     * data: { a: [1, 2, 3] }
+     * pool.remove('a', 2); // { a: [1, 3] }
+    */
+    public remove(key: string, value: any) {
+        this.data[key] = this.data[key] ?? [];
+        this.data[key] = this.data[key].filter((v: any) => v !== value);
     }
 }
