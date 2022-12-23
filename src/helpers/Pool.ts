@@ -55,27 +55,63 @@ export default class Pool {
         }
     }
 
-    /** Gets a value from the pool. */
-    public get(key: string): any {
-        if (key.includes('.')) {
-            const keys = key.split('.');
-            let data = this.data[keys[0]];
-            for (const key of keys) data = data[key];
-            return data;
-        } else return this.data[key] || null;
+    /** 
+     * Gets a value from the pool.
+     * @param key The key to get the value from. 
+     * @param path The path to get the value from.
+     * 
+     * @example
+     * data: { a: { b: { c: 1 } } }
+     * pool.get('a', 'b.c'); // 1
+     * pool.get('a', 'b'); // { c: 1 }
+     * pool.get('a'); // { b: { c: 1 } }
+    */
+    public get(key: string, path: string = ""): any {
+        const keys = path.split('.');
+        let value = this.data[key];
+        
+        for (const key of keys) {
+            if (value?.[key]) value = value?.[key];
+            else if (value?.[+key]) value = value?.[+key];
+            else {
+                value = null;
+                break;
+            };
+        }
+
+        return value;
     }
 
-    /** Sets a value in the pool. */
-    public set(key: string, value: any): void {
-        this.data[key] = value;
-        
+    /** Sets a value in the pool.
+     * @param key The key to set the value to.
+     * @param value The value to set.
+     * @param path The path to set the value to.
+     * 
+     * @example
+     * data: { a: { b: { c: 1 } } }
+     * pool.set('a', 2, 'b'); // { a: { b: 2 } }
+     * pool.set('a', 2, 'b.c'); // { a: { b: { c: 2 } } }
+     * pool.set('a', 2); // { a: 2 }
+     * pool.set('a', 2, 'b.d'); // { a: { b: { c: 1, d: 2 } } }
+     */
+    public set(key: string, value: any, path: string = ""): void {
+        const keys = [key, ...path.split('.')];
+        let p = this.data;
+
+        for (let i = 0; i < keys.length - 1; i++) {
+            const key = keys[i];
+            if (!p[key]) p[key] = {};
+            p = p[key];
+        }
+
+        p[keys[keys.length - 1]] = value;
         !this.options.defer && (this.modified = true, this.save());
     }
 
     /** Deletes a value from the pool. */
+    // TODO(Altanis): Add path support.
     public delete(key: string): void {
         delete this.data[key];
-
         !this.options.defer && (this.modified = true, this.save());
     }
 }
