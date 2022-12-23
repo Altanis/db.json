@@ -29,10 +29,6 @@ export default class JSONWrapper {
         const directory = resolve(process.cwd(), 'database');
         
         if (!fs.existsSync(directory)) fs.mkdirSync(directory);
-        /*else {
-            if (!fs.existsSync(`${directory}${sep}${this.options.file}.json`)) this.pool = fs.writeFileSync(`${directory}${sep}${this.options.file}.json`, '{}');
-        }*/
-
         this.pool = new Pool(`${directory}${sep}${this.options.file}.json`, this.options, this.logger);
     }
 }
