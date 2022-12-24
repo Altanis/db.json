@@ -1,18 +1,17 @@
 {
-  "name": "db.json",
+  "name": "jsdatabase.json",
   "version": "1.0.0",
   "description": "A wrapper around JSON to provide a lightweight, persistent, local database.",
   "main": "lib/Index.js",
   "directories": {
     "lib": "lib"
   },
-  "devDependencies": {},
   "scripts": {
     "build": "tsc -p ."
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Altanis/db.json.git"
+    "url": "git+https://github.com/Altanis/jsdatabase.json.git"
   },
   "keywords": [
     "json",
@@ -28,7 +27,13 @@
   "license": "ISC",
   "types": "./lib/Index.d.ts",
   "bugs": {
-    "url": "https://github.com/Altanis/db.json/issues"
+    "url": "https://github.com/Altanis/jsdatabase.json/issues"
   },
-  "homepage": "https://github.com/Altanis/db.json#readme"
+  "homepage": "https://github.com/Altanis/jsdatabase.json#readme",
+  "dependencies": {
+    "jsdatabase.json": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.17"
+  }
 }

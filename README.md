@@ -9,7 +9,7 @@ This module is a wrapper around JSON which makes it easier to work with. This da
 
 ### USAGE:
 ```js
-const { JSONWrapper } = require('jsondb');
+const { JSONWrapper } = require('jsdatabase.json');
 const database = new JSONWrapper({
     file: 'db',
     verbose: true,
