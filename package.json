@@ -1,14 +1,34 @@
 {
-  "name": "jsondb",
+  "name": "db.json",
   "version": "1.0.0",
-  "description": "A simple wrapper around JSON to employ a persistent psuedodatabase.",
-  "main": "lib/index.ts",
+  "description": "A wrapper around JSON to provide a lightweight, persistent, local database.",
+  "main": "lib/Index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "devDependencies": {},
   "scripts": {
     "build": "tsc -p ."
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Altanis/db.json.git"
+  },
+  "keywords": [
+    "json",
+    "db",
+    "database",
+    "persistent",
+    "map",
+    "sql",
+    "sequel",
+    "storage"
+  ],
   "author": "Altanis",
   "license": "ISC",
-  "devDependencies": {
-    "@types/node": "^18.11.17"
-  }
+  "types": "./lib/Index.d.ts",
+  "bugs": {
+    "url": "https://github.com/Altanis/db.json/issues"
+  },
+  "homepage": "https://github.com/Altanis/db.json#readme"
 }
