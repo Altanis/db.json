@@ -34,7 +34,7 @@ export default class Pool extends EventEmitter {
 
     /** Validates the pool, internal function ran for every new instance of Pool. */
     private initialize(): void {
-        if (!fs.readFileSync(this.file)) fs.writeFileSync(this.file, '{}');
+        if (!fs.existsSync(this.file)) fs.writeFileSync(this.file, '{}');
         else {
             try {
                 this.data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
@@ -79,19 +79,18 @@ export default class Pool extends EventEmitter {
      * pool.get('a'); // { b: { c: 1 } }
     */
     public get(key: string, path: string = ""): any {
-        const keys = path.split('.');
+        const keys = path.split('.').filter(key => key);
         let value = this.data[key];
         
         for (const key of keys) {
             if (value?.[key]) value = value?.[key];
             else if (value?.[+key]) value = value?.[+key];
             else {
-                value = null;
                 break;
             };
         }
 
-        return value;
+        return value || null;
     }
 
     /** Finds a value in the pool using a callback.
@@ -118,16 +117,16 @@ export default class Pool extends EventEmitter {
     public set(key: string, value: any, path: string = ""): void {
         if (this.locked) return this.logger.warn("Pool is locked, cannot run Pool.set().");
 
-        const keys = [key, ...path.split('.')];
+        const keys = [key, ...path.split('.')].filter(key => key);
         let p = this.data;
 
-        for (let i = 0; i < keys.length - 1; i++) {
-            const key = keys[i];
-            if (!p[key]) p[key] = {};
-            p = p[key];
+        for (const key of keys) {
+//            console.log(key === keys[keys.length - 1], p[key]);
+            if (key === keys[keys.length - 1]) p[key] = value;
+            else if (p[key]) p = p[key];
+            else p = p[key] = {};
         }
 
-        p[keys[keys.length - 1]] = value;
         this.options.defer ? this.modified = true : this.save();
     }
 
@@ -152,18 +151,14 @@ export default class Pool extends EventEmitter {
     public ensure(key: string, value: any, path: string = ""): void {
         if (this.locked) return this.logger.warn("Pool is locked, cannot run Pool.ensure().");
 
-        const keys = [key, ...path.split('.')];
+        const keys = [key, ...path.split('.')].filter(key => key);
         let p = this.data;
 
-        for (let i = 0; i < keys.length - 1; i++) {
-            const key = keys[i];
-            if (!p[key]) p[key] = {};
-            p = p[key];
-        }
-
-        if (!p[keys[keys.length - 1]]) {
-            p[keys[keys.length - 1]] = value;
-            this.options.defer ? this.modified = true : this.save();
+        for (const key of keys) {
+            if (key === keys[keys.length - 1]) {
+                if (!p[key]) p[key] = value;
+            } else if (p[key]) p = p[key];
+            else p = p[key] = {};
         }
     }
 
@@ -173,7 +168,7 @@ export default class Pool extends EventEmitter {
      * 
      */
     public has(key: string, path: string): boolean {
-        const keys = path.split('.');
+        const keys = path.split('.').filter(key => key);
         let value = this.data[key];
         
         for (const key of keys) {
@@ -234,7 +229,7 @@ export default class Pool extends EventEmitter {
     public observe(key: string, path: string = ""): ProxyHandler<object> | void {
         if (this.locked) return this.logger.warn("Pool is locked, cannot run Pool.observe().");
 
-        const keys = [key, ...path.split('.')];
+        const keys = [key, ...path.split('.')].filter(key => key);
         let p = this.data;
 
         for (const key of keys) {

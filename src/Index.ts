@@ -6,7 +6,7 @@ import { Options } from './types/Interfaces';
 import Pool from './helpers/Pool';
 import Logger from './helpers/Logger';
 
-export default class JSONWrapper {
+export class JSONWrapper {
     /** The options of the JSONWrapper. */
     public options: Options;
     /** The pools to read/write data from. */
