@@ -18,6 +18,7 @@ export default class JSONWrapper {
         this.options = options;
         this.options.backup = this.options.backup || false;
         this.options.verbose = this.options.verbose || true;
+        this.options.defer = this.options.defer || 0;
 
         this.logger = new Logger(this.options.verbose);
 
