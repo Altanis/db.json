@@ -2,9 +2,8 @@ import fs from  'fs';
 
 import { Options } from '../types/Interfaces';
 import Logger from '../helpers/Logger';
-import { EventEmitter } from 'stream';
 
-export default class Pool extends EventEmitter {
+export default class Pool {
     /** The file to read/write data from. */
     public file: string;
     /** The data of the file. */
@@ -23,8 +22,6 @@ export default class Pool extends EventEmitter {
     private locked: boolean = false;
 
     constructor(file: string, options: Options, logger: Logger) {
-        super();
-
         this.file = file;
         this.logger = logger;
         this.options = options;
@@ -47,24 +44,28 @@ export default class Pool extends EventEmitter {
         this.logger.debug(`Initialized pool for file \x1b[35m${this.file}\x1b[0m`);
     }
 
-    /** Saves values in the pool. */
-    private save(): void {        
-        if (this.locked) {
-            this.options.defer = 0;
-            return this.logger.warn("Pool is locked, cannot run Pool.save(). Shutting down save deference.");
-        }
+    /** Saves values in the pool. Resolves the Job ID. */
+    private async save(): Promise<number> {  
+        return new Promise((res, rej) => {      
+            if (this.locked) {
+                this.options.defer = 0;
+                return rej(this.logger.warn("Pool is locked, cannot run Pool.save(). Shutting down save deference."));
+            }
 
-        if (this.jobs) setTimeout(() => this.save(), 1000);
-        else {
-            this.jobs++;
-            fs.writeFile(this.file, JSON.stringify(this.data, null, this.options.indents || 0), (error) => {
-                if (error) {
-                    this.logger.error(`Failed to save database to file \x1b[35m${this.file}\x1b[0m, will save next time. ${error}`, false);
-                } else this.jobs--;
-            });
+            if (this.jobs) setTimeout(() => this.save(), 1000);
+            else {
+                this.jobs++;
+                fs.writeFile(this.file, JSON.stringify(this.data, null, this.options.indents || 0), (error) => {
+                    if (error) {
+                        rej(this.logger.error(`Failed to save database to file \x1b[35m${this.file}\x1b[0m, will save next time. ${error}`, false));
+                    } else {
+                        res(this.jobs--);
+                    }
+                });
 
-            if (!this.jobs) this.modified = false;
-        }
+                if (!this.jobs) this.modified = false;
+            }
+        });
     }
 
     /** 
@@ -95,11 +96,15 @@ export default class Pool extends EventEmitter {
 
     /** Finds a value in the pool using a callback.
      * @param callback The callback to run.
+     * @param all Whether or not to return all entries that match the callback.
      */
-    public find(callback: (entry: object) => boolean): any {
+    public find(callback: (entry: object) => boolean, all: boolean = true): any {
+        const entries = [];
         for (const key in this.data) {
-            if (callback(this.data[key])) return this.data[key];
+            if (callback(this.data[key])) entries.push(this.data[key]);
         }
+
+        return all ? entries : entries[0];
     }
 
     /** Sets a value in the pool.
@@ -114,20 +119,21 @@ export default class Pool extends EventEmitter {
      * pool.set('a', 2); // { a: 2 }
      * pool.set('a', 2, 'b.d'); // { a: { b: { c: 1, d: 2 } } }
      */
-    public set(key: string, value: any, path: string = ""): void {
-        if (this.locked) return this.logger.warn("Pool is locked, cannot run Pool.set().");
+    public async set(key: string, value: any, path: string = ""): Promise<number | void> {
+        return new Promise((res, rej) => {
+            if (this.locked) return rej(this.logger.warn("Pool is locked, cannot run Pool.set()."));
 
-        const keys = [key, ...path.split('.')].filter(key => key);
-        let p = this.data;
+            const keys = [key, ...path.split('.')].filter(key => key);
+            let p = this.data;
 
-        for (const key of keys) {
-//            console.log(key === keys[keys.length - 1], p[key]);
-            if (key === keys[keys.length - 1]) p[key] = value;
-            else if (p[key]) p = p[key];
-            else p = p[key] = {};
-        }
+            for (const key of keys) {
+                if (key === keys[keys.length - 1]) p[key] = value;
+                else if (p[key]) p = p[key];
+                else p = p[key] = {};
+            }
 
-        this.options.defer ? this.modified = true : this.save();
+            this.options.defer ? (this.modified = true, res()) : this.save().then(res);
+        });
     }
 
     /** Iterates over the entries.
@@ -148,18 +154,21 @@ export default class Pool extends EventEmitter {
      * @param path The path to ensure the value to.
      */
 
-    public ensure(key: string, value: any, path: string = ""): void {
-        if (this.locked) return this.logger.warn("Pool is locked, cannot run Pool.ensure().");
+    public ensure(key: string, value: any, path: string = ""): Promise<number | void> {
+        return new Promise((res, rej) => {
+            if (this.locked) return rej(this.logger.warn("Pool is locked, cannot run Pool.ensure()."));
 
-        const keys = [key, ...path.split('.')].filter(key => key);
-        let p = this.data;
+            const keys = [key, ...path.split('.')].filter(key => key);
+            let p = this.data;
+    
+            for (const key of keys) {
+                if (key === keys[keys.length - 1] && !p.hasOwnProperty(key)) p[key] = value;
+                else if (p[key]) p = p[key];
+                else p = p[key] = {};
+            }
 
-        for (const key of keys) {
-            if (key === keys[keys.length - 1]) {
-                if (!p[key]) p[key] = value;
-            } else if (p[key]) p = p[key];
-            else p = p[key] = {};
-        }
+            this.options.defer ? (this.modified = true, res()) : this.save().then(res);
+        });
     }
 
     /** Check if a key exists.
@@ -172,8 +181,8 @@ export default class Pool extends EventEmitter {
         let value = this.data[key];
         
         for (const key of keys) {
-            if (value?.[key]) value = value?.[key];
-            else if (value?.[+key]) value = value?.[+key];
+            if (value?.hasOwnProperty(key)) value = value?.[key];
+            else if (value?.hasOwnProperty(+key)) value = value?.[+key];
             else return false;
         }
 
@@ -187,19 +196,23 @@ export default class Pool extends EventEmitter {
      * pool.delete('a'); // {}
      * // NOTE: You cannot delete a path, only the key.
      */
-    public delete(key: string): void {
-        if (this.locked) return this.logger.warn("Pool is locked, cannot run Pool.delete().");
+    public delete(key: string): Promise<number | void> {
+        return new Promise((res, rej) => {
+            if (this.locked) return rej(this.logger.warn("Pool is locked, cannot run Pool.delete()."));
 
-        delete this.data[key];
-        this.options.defer ? this.modified = true : this.save();
+            delete this.data[key];
+            this.options.defer ? (this.modified = true, res) : this.save().then(res);
+        });
     }
 
     /** Clears the pool. */
-    public clear(): void {
-        if (this.locked) return this.logger.warn("Pool is locked, cannot run Pool.clear().");
+    public clear(): Promise<number | void> {
+        return new Promise((res, rej) => {
+            if (this.locked) return rej(this.logger.warn("Pool is locked, cannot run Pool.clear()."));
 
-        this.data = {};
-        this.options.defer ? this.modified = true : this.save();
+            this.data = {};
+            this.options.defer ? (this.modified = true, res) : this.save().then(res);
+        });
     }
 
     /** Get the keys in the pool. */
@@ -226,8 +239,11 @@ export default class Pool extends EventEmitter {
      * const observer = pool.observe('a', 'b.c');
      * observer.c = 2; // Emits 'change' event with value 2.
     */
-    public observe(key: string, path: string = ""): ProxyHandler<object> | void {
-        if (this.locked) return this.logger.warn("Pool is locked, cannot run Pool.observe().");
+    public observe(key: string, path: string = "", callback: (target: object, property: string, value: any) => any): ProxyHandler<object> | void {
+        if (this.locked) {
+            this.logger.warn("Pool is locked, cannot run Pool.observe().");
+            return;
+        }
 
         const keys = [key, ...path.split('.')].filter(key => key);
         let p = this.data;
@@ -241,7 +257,8 @@ export default class Pool extends EventEmitter {
             set: (t, p, v) => {
                 /** @ts-ignore */
                 if (v !== t[p]) {
-                    this.emit('change', v);
+                    /** @ts-ignore */
+                    callback(t, p, v);
                     /** @ts-ignore */
                     t[p] = v;
                 }
@@ -269,31 +286,5 @@ export default class Pool extends EventEmitter {
     public import(data: object): void {
         this.data = data;
         this.options.defer ? this.modified = true : this.save();
-    }
-
-    // A R R A Y  M E T H O D S
-
-    /** Pushes an element into an array.
-     * @param key The key to push the element to.
-     * @param value The value to push.
-     * @example
-     * data: { a: [1, 2, 3] }
-     * pool.push('a', 4); // { a: [1, 2, 3, 4] }
-     */
-    public push(key: string, value: any) {
-        this.data[key] = this.data[key] ?? [];
-        this.data[key].push(value);
-    }
-
-    /** Removes an element from an array.
-     * @param key The key to remove the element from.
-     * @param value The value to remove.
-     * @example
-     * data: { a: [1, 2, 3] }
-     * pool.remove('a', 2); // { a: [1, 3] }
-    */
-    public remove(key: string, value: any) {
-        this.data[key] = this.data[key] ?? [];
-        this.data[key] = this.data[key].filter((v: any) => v !== value);
     }
 }
