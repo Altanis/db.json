@@ -59,14 +59,16 @@ const database = new JSONWrapper({
     indents: 4
 }).pool;
 
+(async function() {
 // Get/Set without paths
-database.set('a', 3);
-console.log(database.get('a')); // 3
+await database.set('a', 3);
+console.log(await (database.get('a'))); // 3
 
 // Get/Set with paths
-database.set('a', { b: 4 });
-console.log(database.get('a')); // { b: 4 }
-console.log(database.get('a', 'b')); // 4
-database.set('a', 5, 'b');
-console.log(database.get('a', 'b')); // 5
+await database.set('a', { b: 4 });
+console.log(await (database.get('a'))); // { b: 4 }
+console.log(await(database.get('a', 'b'))); // 4
+await database.set('a', 5, 'b');
+console.log(await(database.get('a', 'b'))); // 5
+})();
 ```
